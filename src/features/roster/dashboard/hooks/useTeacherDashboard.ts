@@ -1,208 +1,167 @@
 import { useCallback, useEffect, useState } from 'react';
 import dashboardApi from '../services/dashboard.api';
 import {
-  AttendanceStatusFilter,
-  DashboardClassItem,
-  DashboardPagination,
-  DashboardSortBy,
-  DashboardSummary,
-  ShareLinkStatus,
-  SortOrder,
+  ExamCommandCenterResponse,
+  DashboardOverviewSummary,
+  DashboardPhotoHealth,
+  DashboardLogistics,
+  DashboardAttendance,
+  DashboardShareLinks,
+  ExamTimelineItem,
 } from '../types';
 
-interface DashboardQueryState {
-  page: number;
-  limit: number;
-  expiringSoonDays: number;
-  search: string;
-  attendanceStatus: AttendanceStatusFilter | '';
-  shareLinkStatus: ShareLinkStatus | '';
-  sortBy: DashboardSortBy;
-  sortOrder: SortOrder;
+// ─────────────────────────────────────────────
+// DEFAULTS
+// ─────────────────────────────────────────────
+
+const defaultOverview: DashboardOverviewSummary = {
+  totalClasses: 0,
+  totalStudents: 0,
+  totalDistinctCourses: 0,
+  totalDistinctRooms: 0,
+  totalDistinctShifts: 0,
+  classesWithExamToday: 0,
+  classesWithExamThisWeek: 0,
+};
+
+const defaultPhotoHealth: DashboardPhotoHealth = {
+  validPhotoRate: 0,
+  loadedCount: 0,
+  pendingCount: 0,
+  notFoundCount: 0,
+  classesWithIncompletePhoto: 0,
+};
+
+const defaultLogistics: DashboardLogistics = {
+  byRoom: [],
+  byShift: [],
+  byCourse: [],
+};
+
+interface DashboardFilters {
+  startDate: string;
+  endDate: string;
 }
 
+const defaultAttendance: DashboardAttendance = {
+  classesWithAttendance: 0,
+  classesWithoutAttendance: 0,
+  totalStudents: 0,
+  totalNotMarked: 0,
+  totalPresent: 0,
+  totalAbsent: 0,
+  globalPresentRate: null,
+};
+
+const defaultShareLinks: DashboardShareLinks = {
+  totalLinks: 0,
+  activeCount: 0,
+  publicActiveCount: 0,
+  privateActiveCount: 0,
+  expiringSoon24hCount: 0,
+  expiredCount: 0,
+  inactiveCount: 0,
+  expiredOrInactiveCount: 0,
+};
+
+// ─────────────────────────────────────────────
+// RETURN TYPE
+// ─────────────────────────────────────────────
+
 interface UseTeacherDashboardReturn {
-  summary: DashboardSummary;
-  classes: DashboardClassItem[];
-  pagination: DashboardPagination;
+  overview: DashboardOverviewSummary;
+  photoHealth: DashboardPhotoHealth;
+  allExams: ExamTimelineItem[];
+  logistics: DashboardLogistics;
+  attendance: DashboardAttendance;
+  shareLinks: DashboardShareLinks;
   generatedAt: string;
   loading: boolean;
   error: string | null;
-  query: DashboardQueryState;
-  setSearch: (value: string) => void;
-  setAttendanceStatus: (value: AttendanceStatusFilter | '') => void;
-  setShareLinkStatus: (value: ShareLinkStatus | '') => void;
-  setSortBy: (value: DashboardSortBy) => void;
-  setSortOrder: (value: SortOrder) => void;
-  setPage: (page: number) => void;
   refetch: () => Promise<void>;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  availableDates: string[];
+  filters: DashboardFilters;
+  setFilters: React.Dispatch<React.SetStateAction<DashboardFilters>>;
 }
 
-const defaultSummary: DashboardSummary = {
-  classCount: 0,
-  studentCount: 0,
-  validPhotoRate: 0,
-  expiringSoonLinkCount: 0,
-  activeLinkCount: 0,
-  inactiveLinkCount: 0,
-  expiredLinkCount: 0,
-};
-
-const defaultPagination: DashboardPagination = {
-  page: 1,
-  limit: 10,
-  totalItems: 0,
-  totalPages: 1,
-};
+// ─────────────────────────────────────────────
+// ERROR MAP
+// ─────────────────────────────────────────────
 
 const mapDashboardError = (error: any): string => {
   const status = error?.response?.status;
-
-  if (status === 401) {
-    return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-  }
-
-  if (status === 403) {
-    return 'Bạn không có quyền truy cập dashboard này.';
-  }
-
-  if (status === 404) {
-    return 'Không tìm thấy endpoint dashboard. Vui lòng kiểm tra backend.';
-  }
-
+  if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (status === 403) return 'Bạn không có quyền truy cập dashboard này.';
+  if (status === 404) return 'Không tìm thấy endpoint dashboard. Vui lòng kiểm tra backend.';
   return 'Không thể tải dữ liệu dashboard. Vui lòng thử lại.';
 };
 
+// ─────────────────────────────────────────────
+// HOOK
+// ─────────────────────────────────────────────
+
 /**
- * Quản lý toàn bộ state và gọi API cho dashboard giảng viên.
- * @returns Trạng thái dữ liệu dashboard và các action cho UI.
+ * Quản lý toàn bộ state và gọi API cho Exam Command Center Dashboard.
+ * @returns Trạng thái dữ liệu dashboard, action refetch và state quản lý bộ lọc.
  */
 export const useTeacherDashboard = (): UseTeacherDashboardReturn => {
-  const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
-  const [classes, setClasses] = useState<DashboardClassItem[]>([]);
-  const [pagination, setPagination] = useState<DashboardPagination>(defaultPagination);
-  const [generatedAt, setGeneratedAt] = useState('');
+  const [data, setData] = useState<ExamCommandCenterResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState<DashboardQueryState>({
-    page: 1,
-    limit: 10,
-    expiringSoonDays: 3,
-    search: '',
-    attendanceStatus: '',
-    shareLinkStatus: '',
-    sortBy: 'classCode',
-    sortOrder: 'asc',
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  const [filters, setFilters] = useState<DashboardFilters>({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
   });
 
   /**
-   * Tải dữ liệu dashboard theo bộ lọc hiện tại.
-   * @returns Không trả về giá trị.
+   * Tải dữ liệu Exam Command Center từ API.
    */
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const payload = await dashboardApi.getTeacherDashboard({
-        page: query.page,
-        limit: query.limit,
-        expiringSoonDays: query.expiringSoonDays,
-        search: query.search.trim() || undefined,
-        attendanceStatus: query.attendanceStatus || undefined,
-        shareLinkStatus: query.shareLinkStatus || undefined,
-        sortBy: query.sortBy,
-        sortOrder: query.sortOrder,
+      const payload = await dashboardApi.getExamCommandCenter({
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+        expiringSoonDays: 3,
       });
-
-      setSummary(payload.summary || defaultSummary);
-      setClasses(payload.classes || []);
-      setPagination(payload.pagination || defaultPagination);
-      setGeneratedAt(payload.generatedAt || '');
+      setData(payload);
     } catch (fetchError: any) {
       setError(mapDashboardError(fetchError));
-      setSummary(defaultSummary);
-      setClasses([]);
-      setPagination(defaultPagination);
-      setGeneratedAt('');
+      setData(null);
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [filters]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  /**
-   * Cập nhật từ khóa tìm kiếm và quay về trang đầu.
-   * @param value Chuỗi người dùng nhập để lọc theo mã lớp.
-   * @returns Không trả về giá trị.
-   */
-  const setSearch = (value: string) => {
-    setQuery((previous) => ({ ...previous, search: value, page: 1 }));
-  };
-
-  /**
-   * Cập nhật bộ lọc trạng thái điểm danh và quay về trang đầu.
-   * @param value Trạng thái điểm danh cần lọc.
-   * @returns Không trả về giá trị.
-   */
-  const setAttendanceStatus = (value: AttendanceStatusFilter | '') => {
-    setQuery((previous) => ({ ...previous, attendanceStatus: value, page: 1 }));
-  };
-
-  /**
-   * Cập nhật bộ lọc trạng thái link chia sẻ và quay về trang đầu.
-   * @param value Trạng thái link chia sẻ cần lọc.
-   * @returns Không trả về giá trị.
-   */
-  const setShareLinkStatus = (value: ShareLinkStatus | '') => {
-    setQuery((previous) => ({ ...previous, shareLinkStatus: value, page: 1 }));
-  };
-
-  /**
-   * Cập nhật cột sắp xếp và quay về trang đầu.
-   * @param value Tên cột dùng để sắp xếp.
-   * @returns Không trả về giá trị.
-   */
-  const setSortBy = (value: DashboardSortBy) => {
-    setQuery((previous) => ({ ...previous, sortBy: value, page: 1 }));
-  };
-
-  /**
-   * Cập nhật chiều sắp xếp và quay về trang đầu.
-   * @param value Chiều sắp xếp tăng/giảm.
-   * @returns Không trả về giá trị.
-   */
-  const setSortOrder = (value: SortOrder) => {
-    setQuery((previous) => ({ ...previous, sortOrder: value, page: 1 }));
-  };
-
-  /**
-   * Chuyển trang hiện tại của bảng tiến độ lớp.
-   * @param page Trang đích cần chuyển tới.
-   * @returns Không trả về giá trị.
-   */
-  const setPage = (page: number) => {
-    setQuery((previous) => ({ ...previous, page }));
-  };
+  const allExams = data?.allExams ?? [];
+  const availableDates = Array.from(new Set(allExams.map(e => e.examDate))).sort();
 
   return {
-    summary,
-    classes,
-    pagination,
-    generatedAt,
+    overview: data?.overview ?? defaultOverview,
+    photoHealth: data?.photoHealth ?? defaultPhotoHealth,
+    allExams,
+    logistics: data?.logistics ?? defaultLogistics,
+    attendance: data?.attendance ?? defaultAttendance,
+    shareLinks: data?.shareLinks ?? defaultShareLinks,
+    generatedAt: data?.generatedAt ?? '',
     loading,
     error,
-    query,
-    setSearch,
-    setAttendanceStatus,
-    setShareLinkStatus,
-    setSortBy,
-    setSortOrder,
-    setPage,
     refetch: fetchData,
+    selectedDate,
+    setSelectedDate,
+    availableDates,
+    filters,
+    setFilters,
   };
 };
 

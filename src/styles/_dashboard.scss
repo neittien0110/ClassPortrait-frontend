@@ -1,0 +1,983 @@
+@import 'variables';
+
+// ═══════════════════════════════════════════════════
+// EXAM COMMAND CENTER DASHBOARD
+// ═══════════════════════════════════════════════════
+
+.dash-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+// ─────────────────────────────────────────────
+// SECTION
+// ─────────────────────────────────────────────
+
+.dash-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dash-section-header {
+  border-left: 4px solid $accent-strong;
+  padding-left: 12px;
+}
+
+.dash-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: $text-strong;
+  margin: 0;
+}
+
+.dash-section-subtitle {
+  font-size: 0.95rem;
+  color: $text-muted-strong;
+  margin: 4px 0 0;
+}
+
+// ─────────────────────────────────────────────
+// PANEL
+// ─────────────────────────────────────────────
+
+.dash-panel {
+  background: #fff;
+  border: 1px solid $shell-border;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dash-panel-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: $text-strong;
+  padding: 14px 16px;
+  margin: 0;
+  border-bottom: 1px solid $shell-border;
+  background: $shell-background-alt;
+}
+
+.dash-panel-body {
+  padding: 16px;
+}
+
+// ─────────────────────────────────────────────
+// KPI SUMMARY GRID
+// ─────────────────────────────────────────────
+
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+
+  @media (max-width: $screen-lg) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: $screen-sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.dash-kpi-card {
+  background: #fff;
+  border: 1px solid $shell-border;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+    transform: translateY(-1px);
+  }
+
+  &.is-good {
+    border-left: 4px solid #22c55e;
+  }
+
+  &.is-warning {
+    border-left: 4px solid #f59e0b;
+  }
+
+  &.is-danger {
+    border-left: 4px solid #ef4444;
+  }
+
+  &.is-neutral {
+    border-left: 4px solid $shell-border;
+  }
+}
+
+.dash-kpi-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.dash-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-kpi-label {
+  font-size: 0.95rem;
+  color: $text-muted-strong;
+  line-height: 1.3;
+}
+
+.dash-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: $text-strong;
+  line-height: 1;
+}
+
+.dash-kpi-sub {
+  font-size: 0.85rem;
+  color: $text-muted-strong;
+}
+
+// ─────────────────────────────────────────────
+// UPCOMING EXAMS TIMELINE
+// ─────────────────────────────────────────────
+
+.dash-exam-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dash-timeline-group {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+
+  &.is-today .dash-timeline-date {
+    background: #fff8e1;
+    border-color: #f59e0b;
+  }
+}
+
+.dash-timeline-date {
+  flex-shrink: 0;
+  width: 110px;
+  background: $shell-background-alt;
+  border: 1px solid $shell-border;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 80px;
+}
+
+.dash-timeline-date-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: $text-strong;
+}
+
+.dash-timeline-date-full {
+  font-size: 0.72rem;
+  color: $text-muted-strong;
+}
+
+.dash-timeline-count {
+  font-size: 0.72rem;
+  background: $accent-strong;
+  color: #fff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  display: inline-block;
+}
+
+.dash-today-badge {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #f59e0b;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.dash-timeline-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-exam-card {
+  background: #fff;
+  border: 1px solid $shell-border;
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &:hover {
+    border-color: $accent-strong;
+    box-shadow: 0 3px 12px rgba($accent-strong, 0.12);
+    transform: translateX(3px);
+  }
+}
+
+.dash-exam-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dash-exam-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-exam-course-code {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: $accent-strong;
+}
+
+.dash-exam-course-name {
+  font-size: 0.8rem;
+  color: $text-strong;
+  font-weight: 500;
+}
+
+.dash-open-icon {
+  font-size: 1rem;
+  color: $text-muted-strong;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+
+  .dash-exam-card:hover & {
+    color: $accent-strong;
+  }
+}
+
+.dash-exam-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dash-meta-item {
+  font-size: 0.78rem;
+  color: $text-muted-strong;
+}
+
+.dash-exam-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-badge {
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+// ─────────────────────────────────────────────
+// CHARTS GRID
+// ─────────────────────────────────────────────
+
+.dash-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+
+  @media (max-width: $screen-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-chart-empty {
+  color: $text-muted-strong;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.dash-photo-warning {
+  font-size: 0.82rem;
+  color: #f59e0b;
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+// ─────────────────────────────────────────────
+// BOTTOM ROW (Attendance + ShareLinks)
+// ─────────────────────────────────────────────
+
+.dash-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+
+  @media (max-width: $screen-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Attendance card
+.dash-attendance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dash-attendance-rate {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.dash-rate-value {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: $accent-strong;
+  display: block;
+  line-height: 1;
+}
+
+.dash-rate-label {
+  font-size: 0.78rem;
+  color: $text-muted-strong;
+  margin-top: 4px;
+  display: block;
+}
+
+.dash-attendance-stats {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  background: $shell-background-alt;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid $shell-border;
+}
+
+.dash-att-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  gap: 4px;
+}
+
+.dash-att-divider {
+  width: 1px;
+  background: $shell-border;
+}
+
+.dash-att-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.dash-att-desc {
+  font-size: 0.72rem;
+  color: $text-muted-strong;
+}
+
+.dash-attendance-progress-section {
+  padding-top: 4px;
+}
+
+// ShareLink card
+.dash-sharelink-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dash-sharelink-total {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.dash-total-num {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: $text-strong;
+  display: block;
+  line-height: 1;
+}
+
+.dash-total-label {
+  font-size: 0.78rem;
+  color: $text-muted-strong;
+  margin-top: 4px;
+  display: block;
+}
+
+.dash-link-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid $shell-border;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dash-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid $shell-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.is-highlight {
+    background: #fff8e1;
+  }
+}
+
+.dash-link-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.dash-link-label {
+  flex: 1;
+  font-size: 0.83rem;
+  color: $text-strong;
+}
+
+.dash-link-count {
+  font-size: 1rem;
+}
+
+.dash-sharelink-empty {
+  font-size: 0.83rem;
+  color: $text-muted-strong;
+  text-align: center;
+  margin: 0;
+}
+
+// ─────────────────────────────────────────────
+// FILTERS
+// ─────────────────────────────────────────────
+
+.dash-filters-container {
+  background: #fff;
+  border: 1px solid $shell-border;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+// ─────────────────────────────────────────────
+// ATTENDANCE CARD V2
+// ─────────────────────────────────────────────
+
+.dash-attendance-card-v2 {
+  .dash-att-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dash-att-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .att-label {
+    font-size: 0.85rem;
+    color: $text-muted-strong;
+    display: flex;
+    align-items: center;
+  }
+
+  .att-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+
+  .att-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .dash-att-divider-h {
+    height: 1px;
+    background: $shell-border;
+    margin: 4px 0;
+  }
+}
+
+// ─────────────────────────────────────────────
+// SHARE LINK CARD V2
+// ─────────────────────────────────────────────
+
+.dash-sharelink-card-v2 {
+  .dash-link-group {
+    border: 1px solid $shell-border;
+    border-radius: 10px;
+    padding: 12px;
+    background: $shell-background-alt;
+  }
+
+  .dash-link-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .dash-group-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .dash-group-count {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: $text-strong;
+  }
+
+  .dash-detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .dash-sharelink-empty {
+    font-size: 0.85rem;
+    color: $text-muted-strong;
+    text-align: center;
+  }
+}
+
+// ─────────────────────────────────────────────
+// EXAM CALENDAR
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// EXAM DATE PICKER
+// ─────────────────────────────────────────────
+
+.exam-datepicker-container {
+  position: relative;
+  display: inline-block;
+  z-index: 100;
+}
+
+.exam-datepicker-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 280px;
+  z-index: 1001;
+  animation: dashFadeInUp 0.2s ease-out;
+}
+
+@keyframes dashFadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.exam-calendar-sheet {
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .calendar-weekday {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: $text-muted-strong;
+    padding: 4px 0;
+  }
+
+  .calendar-day {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 6px;
+    position: relative;
+    transition: all 0.15s;
+
+    &:hover:not(.empty) {
+      background-color: $shell-background-alt;
+    }
+
+    &.active {
+      background-color: $accent-strong !important;
+      color: #fff !important;
+      font-weight: 700;
+    }
+
+    &.has-exam:not(.active) {
+      background-color: rgba(#f59e0b, 0.1);
+      color: #b45309;
+      font-weight: 600;
+    }
+
+    &.empty {
+      cursor: default;
+    }
+  }
+
+  .exam-dot {
+    width: 3px;
+    height: 3px;
+    background-color: #f59e0b;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 3px;
+  }
+
+  .active .exam-dot {
+    background-color: #fff;
+  }
+}
+
+// ─────────────────────────────────────────────
+// MISC
+// ─────────────────────────────────────────────
+
+.dash-footer {
+  font-size: 0.78rem;
+  color: $text-muted-strong;
+  text-align: right;
+  padding-top: 8px;
+  border-top: 1px solid $shell-border;
+}
+
+.dash-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 0;
+  color: $text-muted-strong;
+}
+
+.dash-empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: $text-muted-strong;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+
+  span {
+    font-size: 2rem;
+  }
+}
+
+.dash-refresh-note {
+  font-size: 0.78rem;
+  color: $text-muted-strong;
+  margin-bottom: 8px;
+}
+
+// ---------------------------------------------
+// MATRIX TABLE & GANTT CHART
+// ---------------------------------------------
+
+.dash-matrix-wrapper {
+  overflow-x: auto;
+  padding: 16px;
+}
+
+.dash-matrix-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dash-matrix-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+  color: $text-strong;
+}
+
+.dash-matrix-meta {
+  font-size: 1rem;
+  color: $text-muted-strong;
+}
+
+.dash-matrix-table {
+  min-width: 800px;
+  margin-bottom: 0;
+}
+
+.matrix-col-header {
+  font-size: 1rem;
+  font-weight: 700;
+  color: $text-strong;
+  vertical-align: middle;
+}
+
+.matrix-col-fixed {
+  width: 140px;
+  min-width: 140px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.matrix-row-header {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: $text-strong;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+// Gantt
+.dash-gantt-wrapper {
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.dash-gantt-header-row {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid $shell-border;
+  border-left: 1px solid $shell-border;
+}
+
+.dash-gantt-row {
+  display: flex;
+  align-items: stretch;
+  border-left: 1px solid $shell-border;
+}
+
+.dash-gantt-room-label {
+  width: 140px;
+  min-width: 140px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  color: $text-strong;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 2;
+}
+
+.dash-gantt-timeline {
+  display: flex;
+  flex: 1;
+  min-width: 600px;
+}
+
+.dash-gantt-time-slot {
+  flex: 1;
+  min-width: 130px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: $text-muted-strong;
+}
+
+.dash-gantt-block {
+  width: 90%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border-left: 4px solid;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.dash-gantt-course-code {
+  font-size: 0.75rem;
+  color: $text-strong;
+}
+
+// ---------------------------------------------
+// HORIZONTAL EXAM CARDS (New Design)
+// ---------------------------------------------
+
+.dash-exam-list-horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-exam-h-card {
+  background: #fff;
+  border: 1px solid $shell-border;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  width: 100%;
+  text-align: left;
+  gap: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+
+  &:hover {
+    border-color: $accent-strong;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+
+  &.is-today {
+    border-left: 5px solid #f59e0b;
+  }
+}
+
+.dash-h-card-date {
+  width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  
+  .h-date-day {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $text-strong;
+    text-transform: capitalize;
+  }
+  
+  .h-date-val {
+    font-size: 0.8rem;
+    color: $text-muted-strong;
+  }
+}
+
+.dash-h-card-divider {
+  width: 1px;
+  height: 40px;
+  background: $shell-border;
+  margin: 0 20px;
+  flex-shrink: 0;
+}
+
+.dash-h-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dash-h-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  
+  .h-course-code {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $text-muted-strong;
+  }
+  
+  .h-course-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: $text-strong;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.dash-h-card-meta {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  
+  .h-meta-item {
+    font-size: 0.85rem;
+    color: $text-muted-strong;
+    display: flex;
+    align-items: center;
+    
+    i {
+      font-size: 0.95rem;
+      opacity: 0.7;
+    }
+  }
+}
+
+.dash-h-card-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 20px;
+  flex-shrink: 0;
+
+  .h-arrow-icon {
+    margin-left: 10px;
+    color: $text-muted-strong;
+    font-size: 1.1rem;
+    
+    .dash-exam-h-card:hover & {
+      color: $accent-strong;
+    }
+  }
+}
+
+.h-title-divider {
+  color: $shell-border;
+  margin: 0 15px;
+  font-weight: 300;
+  font-size: 1.2rem;
+}
+
+.dash-h-card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}

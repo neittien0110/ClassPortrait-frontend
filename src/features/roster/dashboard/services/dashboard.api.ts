@@ -1,38 +1,29 @@
 import api from '../../../../lib/api';
-import {
-  AttendanceStatusFilter,
-  DashboardSortBy,
-  ShareLinkStatus,
-  SortOrder,
-  TeacherDashboardResponse,
-} from '../types';
+import { ExamCommandCenterResponse } from '../types';
 
-export interface GetTeacherDashboardParams {
-  page: number;
-  limit: number;
+export interface GetExamCommandCenterParams {
+  startDate?: string;
+  endDate?: string;
   expiringSoonDays?: number;
-  search?: string;
-  attendanceStatus?: AttendanceStatusFilter;
-  shareLinkStatus?: ShareLinkStatus;
-  sortBy?: DashboardSortBy;
-  sortOrder?: SortOrder;
 }
 
 /**
- * Gọi API dashboard của giảng viên theo bộ lọc và phân trang.
- * @param params Bộ tham số truy vấn dashboard.
- * @returns Dữ liệu dashboard tổng hợp cho giao diện.
+ * Gọi API lấy dữ liệu Exam Command Center cho giảng viên.
+ * @param params Tham số tùy chọn: bộ lọc học kỳ và khoảng ngày.
+ * @returns Snapshot dashboard tổng hợp.
  */
-const getTeacherDashboard = async (params: GetTeacherDashboardParams): Promise<TeacherDashboardResponse> => {
-  const response = await api.get<TeacherDashboardResponse>('/classes/dashboard/overview', {
+const getExamCommandCenter = async (
+  params?: GetExamCommandCenterParams,
+): Promise<ExamCommandCenterResponse> => {
+  const response = await api.get<ExamCommandCenterResponse>('/classes/dashboard/overview', {
     params,
   });
-
   return response.data;
 };
 
+
 export const dashboardApi = {
-  getTeacherDashboard,
+  getExamCommandCenter,
 };
 
 export default dashboardApi;

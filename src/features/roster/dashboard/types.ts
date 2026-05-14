@@ -1,69 +1,93 @@
-export type AttendanceStatusFilter = 'available' | 'no_data';
+// ─────────────────────────────────────────────
+// DASHBOARD TYPES - Exam Command Center
+// ─────────────────────────────────────────────
 
-export type ShareLinkStatus = 'no_link' | 'active' | 'inactive' | 'expired';
+export interface DashboardOverviewSummary {
+  totalClasses: number;
+  totalStudents: number;
+  totalDistinctCourses: number;
+  totalDistinctRooms: number;
+  totalDistinctShifts: number;
+  classesWithExamToday: number;
+  classesWithExamThisWeek: number;
+}
 
-export type DashboardSortBy =
-  | 'classCode'
-  | 'studentCount'
-  | 'validPhotoRate'
-  | 'presentRate'
-  | 'absentCount'
-  | 'attendanceStatus'
-  | 'shareLinkStatus'
-  | 'remainingDays';
+export interface DashboardPhotoHealth {
+  validPhotoRate: number;
+  loadedCount: number;
+  pendingCount: number;
+  notFoundCount: number;
+  classesWithIncompletePhoto: number;
+}
 
-export type SortOrder = 'asc' | 'desc';
+export interface ExamTimelineItem {
+  classId: string;
+  courseCode: string;
+  courseName: string;
+  examDate: string;          // 'YYYY-MM-DD'
+  examRoom: string | null;
+  examTime: string | null;
+  examShift: string | null;
+  studentCount: number;
+  validPhotoRate: number;
+  presentCount: number | null;
+  absentCount: number | null;
+  attendanceRate: number | null;
+}
 
-export interface DashboardSummary {
+export interface RoomStat {
+  examRoom: string;
   classCount: number;
   studentCount: number;
-  validPhotoRate: number;
-  expiringSoonLinkCount: number;
-  activeLinkCount: number;
-  inactiveLinkCount: number;
-  expiredLinkCount: number;
 }
 
-export interface DashboardShareLink {
-  status: ShareLinkStatus;
-  isActive: boolean;
-  isExpired: boolean;
-  expiresAt: string | null;
-  remainingDays: number | null;
-}
-
-export interface DashboardClassItem {
-  classId: string;
-  classCode: string;
-  className?: string;
+export interface ShiftStat {
+  examShift: string;
+  examTime: string | null;
+  classCount: number;
   studentCount: number;
-  validPhotoRate: number;
-  presentRate: number | null;
-  absentCount: number | null;
-  attendanceStatus: 'no_data' | 'available';
-  shareLink: DashboardShareLink;
 }
 
-export interface DashboardPagination {
-  page: number;
-  limit: number;
-  totalItems: number;
-  totalPages: number;
+export interface CourseStat {
+  courseCode: string;
+  courseName: string;
+  classCount: number;
+  studentCount: number;
 }
 
-export interface DashboardFilters {
-  expiringSoonDays: number;
-  search?: string;
-  attendanceStatus?: AttendanceStatusFilter;
-  shareLinkStatus?: ShareLinkStatus;
-  sortBy?: DashboardSortBy;
-  sortOrder?: SortOrder;
+export interface DashboardLogistics {
+  byRoom: RoomStat[];
+  byShift: ShiftStat[];
+  byCourse: CourseStat[];
 }
 
-export interface TeacherDashboardResponse {
-  summary: DashboardSummary;
-  classes: DashboardClassItem[];
-  pagination: DashboardPagination;
-  filters: DashboardFilters;
+export interface DashboardAttendance {
+  classesWithAttendance: number;
+  classesWithoutAttendance: number;
+  totalStudents: number;
+  totalNotMarked: number;
+  totalPresent: number;
+  totalAbsent: number;
+  globalPresentRate: number | null;
+}
+
+export interface DashboardShareLinks {
+  totalLinks: number;
+  activeCount: number;
+  publicActiveCount: number;
+  privateActiveCount: number;
+  expiringSoon24hCount: number;
+  expiredCount: number;
+  inactiveCount: number;
+  expiredOrInactiveCount: number;
+}
+
+export interface ExamCommandCenterResponse {
+  overview: DashboardOverviewSummary;
+  photoHealth: DashboardPhotoHealth;
+  allExams: ExamTimelineItem[];
+  logistics: DashboardLogistics;
+  attendance: DashboardAttendance;
+  shareLinks: DashboardShareLinks;
   generatedAt: string;
 }
