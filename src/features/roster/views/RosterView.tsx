@@ -13,6 +13,8 @@ import { AttendanceFilter, useAttendanceController } from '../attendance/hooks/u
 import { useRosterFilteredStudents } from '../attendance/hooks/useRosterFilteredStudents';
 import { useRosterController } from '../hooks/useRosterController';
 import { PrintHeaderModal, usePrintHeaderController } from '../print';
+import { FaceVerificationScanner } from '../attendance/components/ai/FaceVerificationScanner';
+import { useFaceModels } from '../attendance/hooks/ai/useFaceModels';
 
 const formatAttendanceTime = (value: string): string => {
   const date = new Date(value);
@@ -27,6 +29,10 @@ function RosterView() {
   const location = useLocation();
   const { classId } = useParams<{ classId: string }>();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
+  const [isAiModeOpen, setAiModeOpen] = useState(false);
+  
+  // Tải trước và khởi động ấm mô hình AI ngay khi vào trang sổ ảnh để tránh bị trễ/đen camera khi quét
+  useFaceModels();
   
   const { classes, selectedClass, students, loading, error, selectClass, refetchClasses } = useClasses({
     enabled: true,
@@ -91,6 +97,12 @@ function RosterView() {
     };
   }, [photosPerRow]);
 
+  useEffect(() => {
+    if (!isAttendanceMode) {
+      setAiModeOpen(false);
+    }
+  }, [isAttendanceMode]);
+
   // Tự động kích hoạt hành động nếu được yêu cầu từ Dashboard (thông qua location.state)
   useEffect(() => {
     if (loading || !selectedClass) return;
@@ -149,6 +161,7 @@ function RosterView() {
           onStartAttendance={handleStartAttendance}
           onSaveAttendance={() => setStatsModalOpen(true)}
           onCancelAttendance={handleCancelAttendanceMode}
+          onStartAiScanner={() => setAiModeOpen(true)}
         />
 
         <div className="roster-controls-combined">
@@ -208,6 +221,15 @@ function RosterView() {
           )}
         </div>
       </div>
+
+      {isAttendanceMode && isAiModeOpen && (
+        <FaceVerificationScanner
+          students={filteredStudents}
+          activeAttendanceMap={activeAttendanceMap}
+          onToggleAttendance={handleToggleAttendance}
+          onClose={() => setAiModeOpen(false)}
+        />
+      )}
 
       <RosterBody
         loading={loading}

@@ -1,0 +1,442 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import ReactDOM from 'react-dom';
+import { useFaceModels } from '../../hooks/ai/useFaceModels';
+import { useWebcam } from '../../hooks/ai/useWebcam';
+import { useFaceVerification } from '../../hooks/ai/useFaceVerification';
+import { CameraOverlay } from './CameraOverlay';
+import { RecentScansLog, ScannedStudent } from './RecentScansLog';
+
+interface FaceVerificationScannerProps {
+  students: any[];
+  activeAttendanceMap: Record<string, any>;
+  onToggleAttendance: (mssv: string) => void;
+  onClose: () => void;
+}
+
+export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = ({
+  students,
+  activeAttendanceMap,
+  onToggleAttendance,
+  onClose
+}) => {
+  const { modelsLoaded, loadingError } = useFaceModels();
+  const { videoRef, isCameraActive, cameraError, startCamera, stopCamera } = useWebcam();
+
+  const [autoMode, setAutoMode] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [recentScans, setRecentScans] = useState<ScannedStudent[]>([]);
+  const [matchHoldTime, setMatchHoldTime] = useState(0);
+
+  // Ô tìm kiếm nhanh
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Các trạng thái hỗ trợ việc trì hoãn (delay) hiển thị kết quả thành công
+  const [isPaused, setIsPaused] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Dọn dẹp timeout khi component unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Lọc sinh viên chưa điểm danh
+  const pendingStudents = useMemo(() => {
+    return students.filter(s => {
+      const record = activeAttendanceMap[s.mssv];
+      return !record || record.status !== 'present';
+    });
+  }, [students, activeAttendanceMap]);
+
+  // Lọc theo từ khóa tìm kiếm (hỗ trợ tiếng Việt không dấu và chữ thường)
+  const filteredPendingStudents = useMemo(() => {
+    if (!searchQuery.trim()) return pendingStudents;
+    const cleanQuery = searchQuery.toLowerCase().trim();
+    return pendingStudents.filter(s =>
+      s.fullName.toLowerCase().includes(cleanQuery) ||
+      s.mssv.toLowerCase().includes(cleanQuery)
+    );
+  }, [pendingStudents, searchQuery]);
+
+  const currentStudent = filteredPendingStudents[currentIndex];
+
+  // Reset index về 0 mỗi khi người dùng thay đổi từ khóa tìm kiếm để focus vào kết quả đầu tiên
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [searchQuery]);
+
+  // Chỉ chạy phân tích hình ảnh khi không trong chế độ tạm dừng (delay hiển thị thành công)
+  const { verificationResult, refImageError } = useFaceVerification(
+    videoRef,
+    isCameraActive && !isPaused,
+    modelsLoaded,
+    currentStudent ? currentStudent.photoUrl : null
+  );
+
+  // Khởi động camera khi model AI đã sẵn sàng (tránh race condition màn đen)
+  useEffect(() => {
+    if (modelsLoaded) {
+      startCamera();
+    }
+    return () => stopCamera();
+  }, [modelsLoaded, startCamera, stopCamera]);
+
+  // Reset index khi danh sách thay đổi hoặc đã hết
+  useEffect(() => {
+    if (currentIndex >= filteredPendingStudents.length) {
+      setCurrentIndex(Math.max(0, filteredPendingStudents.length - 1));
+    }
+  }, [filteredPendingStudents.length, currentIndex]);
+
+  // Logic Auto-Mode: Cần khớp liên tục ~18 frames (~500-600ms) để chống nhiễu
+  useEffect(() => {
+    if (isPaused) return;
+
+    if (!autoMode || !currentStudent || !verificationResult?.isMatch) {
+      setMatchHoldTime(0);
+      return;
+    }
+
+    if (verificationResult.matchScore > 90) {
+      setMatchHoldTime(prev => prev + 1);
+    } else {
+      setMatchHoldTime(0);
+    }
+
+    if (matchHoldTime > 18) {
+      handleVerifyCurrent();
+      setMatchHoldTime(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verificationResult, autoMode, currentStudent, matchHoldTime, isPaused]);
+
+  const handleVerifyCurrent = () => {
+    if (!currentStudent || isPaused) return;
+
+    const score = verificationResult?.matchScore || 100;
+
+    // 1. Báo trạng thái thành công và tạm dừng quét tiếp
+    setSuccessMessage(`Xác nhận đúng sinh viên ${currentStudent.fullName} - Khớp ${score}%`);
+    setIsPaused(true);
+
+    // 2. Lưu vào danh sách quét gần đây lập tức để giao diện hiển thị
+    setRecentScans(prev => {
+      const newLog = [{
+        studentId: currentStudent.id,
+        mssv: currentStudent.mssv,
+        fullName: currentStudent.fullName,
+        photoUrl: currentStudent.photoUrl,
+        scannedAt: new Date(),
+        matchScore: score
+      }, ...prev];
+      return newLog.slice(0, 5);
+    });
+
+    // 3. Phát âm thanh bip
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      }
+    } catch (e) {
+      console.warn('Web Audio error:', e);
+    }
+
+    // 4. Trì hoãn 2 giây để giảng viên/sinh viên kịp quan sát thông tin trước khi chuyển tiếp
+    timeoutRef.current = setTimeout(() => {
+      onToggleAttendance(currentStudent.mssv);
+      setIsPaused(false);
+      setSuccessMessage(null);
+      setMatchHoldTime(0);
+    }, 2000);
+  };
+
+  const handleSkip = () => {
+    if (currentIndex < filteredPendingStudents.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      setCurrentIndex(0);
+    }
+  };
+
+  const handleUndo = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    const record = student ? activeAttendanceMap[student.mssv] : null;
+    if (student && record && record.status === 'present') {
+      onToggleAttendance(student.mssv);
+    }
+    setRecentScans(prev => prev.filter(s => s.studentId !== studentId));
+  };
+
+  const modalContent = (
+    <>
+      {/* Backdrop */}
+      <div
+        className="modal-backdrop fade show"
+        style={{ zIndex: 1050 }}
+        onClick={onClose}
+      />
+
+      {/* Modal Dialog */}
+      <div
+        className="modal fade show d-block"
+        style={{ zIndex: 1055 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="aiScannerModalTitle"
+      >
+        <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '960px' }}>
+          <div className="modal-content bg-white text-dark border shadow-lg">
+
+            {/* Header */}
+            <div className="modal-header border-bottom align-items-center bg-white px-3 py-2">
+              <div className="d-flex align-items-center gap-3 flex-grow-1">
+                <h5 className="modal-title text-dark mb-0 d-flex align-items-center fw-bold" id="aiScannerModalTitle" style={{ fontSize: '1.05rem' }}>
+                  <i className="bi bi-person-bounding-box me-2 text-primary" />
+                  Quét Mặt
+                </h5>
+
+                {/* Ô tìm kiếm nhanh tích hợp trên Header, cạnh tiêu đề */}
+                <div className="position-relative" style={{ width: '220px' }}>
+                  <i className="bi bi-search position-absolute text-muted" style={{ left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }} />
+                  <input
+                    type="text"
+                    className="form-control form-control-sm border ps-4 pe-4 bg-light text-dark"
+                    placeholder="Tìm mssv hoặc tên"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    disabled={isPaused}
+                    style={{ borderRadius: '20px', fontSize: '0.85rem', height: '32px' }}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0 position-absolute text-muted"
+                      style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', textDecoration: 'none', border: 'none', background: 'none' }}
+                      onClick={() => setSearchQuery('')}
+                      disabled={isPaused}
+                    >
+                      <i className="bi bi-x-circle-fill" />
+                    </button>
+                  )}
+
+                  {/* Dropdown kết quả tìm kiếm thả xuống */}
+                  {searchQuery.trim() !== '' && (
+                    <div
+                      className="position-absolute bg-white border rounded shadow-lg mt-1 w-100 overflow-auto"
+                      style={{ zIndex: 1060, maxHeight: '220px', top: '100%', left: 0 }}
+                    >
+                      <div className="list-group list-group-flush">
+                        {filteredPendingStudents.map((s, idx) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className={`list-group-item list-group-item-action py-2 px-3 border-bottom text-start ${idx === currentIndex ? 'active bg-primary text-white' : 'text-dark bg-white'}`}
+                            style={{ fontSize: '0.8rem', border: 'none' }}
+                            onClick={() => setCurrentIndex(idx)}
+                            disabled={isPaused}
+                          >
+                            <div className="fw-bold text-truncate">{s.fullName}</div>
+                            <div className={idx === currentIndex ? 'text-white-50' : 'text-muted'} style={{ fontSize: '0.7rem' }}>{s.mssv}</div>
+                          </button>
+                        ))}
+                        {filteredPendingStudents.length === 0 && (
+                          <div className="text-center text-muted py-3" style={{ fontSize: '0.8rem' }}>
+                            Không tìm thấy sinh viên
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Nhóm điều khiển Tự động & Nút Đóng */}
+              <div className="d-flex align-items-center gap-3">
+                <div className="form-check form-switch text-dark mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="autoModeSwitch"
+                    checked={autoMode}
+                    onChange={(e) => setAutoMode(e.target.checked)}
+                    disabled={isPaused}
+                  />
+                  <label className="form-check-label fw-medium" htmlFor="autoModeSwitch">
+                    Tự động Xác nhận
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Đóng"
+                  onClick={onClose}
+                  disabled={isPaused}
+                />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="modal-body p-3 bg-white">
+              {/* Alert thông báo xác nhận thành công */}
+              {successMessage && (
+                <div
+                  className="alert alert-success d-flex align-items-center justify-content-center py-2 mb-3 shadow"
+                  role="alert"
+                  style={{ fontSize: '1.1rem', fontWeight: 'bold', animation: 'fadeInDown 0.3s ease' }}
+                >
+                  <i className="bi bi-check-circle-fill me-2" style={{ fontSize: '1.3rem' }}></i>
+                  {successMessage}
+                </div>
+              )}
+
+              {loadingError ? (
+                <div className="alert alert-danger">{loadingError}</div>
+              ) : !modelsLoaded ? (
+                <div className="text-center py-5 text-dark">
+                  <div className="spinner-border text-primary mb-3" role="status" />
+                  <p className="mb-0 text-muted">Đang tải mô hình AI. Vui lòng chờ...</p>
+                </div>
+              ) : (
+                <div className="row g-3">
+                  {/* Cột trái: Camera */}
+                  <div className="col-md-7">
+                    <div
+                      className="position-relative bg-black rounded overflow-hidden"
+                      style={{
+                        minHeight: '320px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: successMessage ? '3px solid #198754' : '3px solid #dee2e6',
+                        transition: 'border-color 0.3s ease'
+                      }}
+                    >
+                      {cameraError ? (
+                        <div className="text-danger text-center p-4">{cameraError}</div>
+                      ) : (
+                        <>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                          />
+                          {!isPaused && (
+                            <CameraOverlay
+                              videoRef={videoRef}
+                              box={verificationResult?.box}
+                              isMatch={verificationResult?.isMatch || false}
+                              matchScore={verificationResult?.matchScore || 0}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <RecentScansLog scans={recentScans} onUndo={handleUndo} />
+                  </div>
+
+                  {/* Cột phải: Thông tin đối soát */}
+                  <div className="col-md-5 d-flex flex-column">
+                    {currentStudent ? (
+                      <div
+                        className="card border-0 text-white flex-grow-1 shadow-sm"
+                        style={{
+                          backgroundColor: successMessage ? '#198754' : '#f8f9fa',
+                          color: successMessage ? '#ffffff' : '#212529',
+                          border: successMessage ? 'none' : '1px solid #dee2e6',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <div className={`card-header ${successMessage ? 'bg-success text-white border-bottom-0' : 'bg-light text-dark border-bottom'} fw-bold`}>
+                          Sinh viên ({currentIndex + 1}/{filteredPendingStudents.length})
+                        </div>
+                        <div className="card-body text-center d-flex flex-column justify-content-center align-items-center py-4">
+                          <div className="position-relative mb-3">
+                            <img
+                              src={currentStudent.photoUrl}
+                              alt={currentStudent.fullName}
+                              className="rounded-circle border border-3 border-light shadow"
+                              style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><rect width="150" height="150" fill="%236c757d"/><text x="75" y="80" text-anchor="middle" fill="%23fff" font-size="20">${currentStudent.mssv}</text></svg>`;
+                              }}
+                            />
+                            {refImageError && (
+                              <span
+                                className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                title={refImageError}
+                              >
+                                <i className="bi bi-exclamation-triangle" />
+                              </span>
+                            )}
+                          </div>
+                          <h4 className={`fw-bold mb-1 ${successMessage ? 'text-white' : 'text-dark'}`}>{currentStudent.fullName}</h4>
+                          <p className={`mb-0 ${successMessage ? 'text-light' : 'text-muted'}`}>MSSV: {currentStudent.mssv}</p>
+                          <p className={`${successMessage ? 'text-light' : 'text-muted'}`}>Lớp: {currentStudent.classCode}</p>
+
+                          <div className="mt-auto pt-4 w-100 d-flex gap-2">
+                            <button className="btn btn-outline-danger flex-grow-1" onClick={handleSkip} disabled={isPaused}>
+                              <i className="bi bi-arrow-right-circle me-1" /> Bỏ qua
+                            </button>
+                            <button
+                              className={`btn ${verificationResult?.isMatch ? 'btn-success' : 'btn-outline-success'} flex-grow-1`}
+                              onClick={handleVerifyCurrent}
+                              disabled={isPaused}
+                            >
+                              <i className="bi bi-check-circle me-1" /> Xác nhận
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="card bg-light border text-dark d-flex align-items-center justify-content-center p-4 text-center flex-grow-1" style={{ minHeight: '300px' }}>
+                        {searchQuery.trim() ? (
+                          <>
+                            <i className="bi bi-search display-3 text-warning mb-3" />
+                            <h5 className="fw-bold">Không có kết quả</h5>
+                            <p className="text-muted mb-0">Không tìm thấy sinh viên chưa điểm danh nào khớp với từ khóa "{searchQuery}".</p>
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-check2-all display-1 text-success mb-3" />
+                            <h5 className="fw-bold text-success">Đã hoàn thành</h5>
+                            <p className="text-muted mb-0">Tất cả sinh viên trong danh sách đã được điểm danh.</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  // Render vào document.body qua Portal để thoát khỏi stacking context của trang cha
+  return ReactDOM.createPortal(modalContent, document.body);
+};

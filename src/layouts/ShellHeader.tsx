@@ -14,6 +14,7 @@ interface ShellHeaderProps {
   onStartAttendance?: () => Promise<void> | void;
   onSaveAttendance?: () => void;
   onCancelAttendance?: () => void;
+  onStartAiScanner?: () => void;
   onImportSuccess?: (importedClassId?: string) => Promise<void> | void;
 }
 
@@ -29,6 +30,7 @@ function ShellHeader({
   onStartAttendance,
   onSaveAttendance,
   onCancelAttendance,
+  onStartAiScanner,
   onImportSuccess,
 }: ShellHeaderProps) {
   const title =
@@ -36,11 +38,11 @@ function ShellHeader({
       ? 'DANH SÁCH LỚP THI'
       : activeView === 'roster'
         ? 'SỔ ẢNH LỚP THI'
-      : activeView === 'dashboard'
-        ? 'DASHBOARD GIẢNG VIÊN'
-      : activeView === 'history'
-        ? 'LỊCH SỬ IMPORT'
-        : 'QUẢN LÝ LINK CHIA SẺ';
+        : activeView === 'dashboard'
+          ? 'DASHBOARD GIẢNG VIÊN'
+          : activeView === 'history'
+            ? 'LỊCH SỬ IMPORT'
+            : 'QUẢN LÝ LINK CHIA SẺ';
 
   return (
     <header className="shell-header d-flex align-items-center justify-content-between">
@@ -80,6 +82,11 @@ function ShellHeader({
               <button type="button" className="btn btn-outline-secondary" onClick={onCancelAttendance} disabled={isAttendanceBusy}>
                 Hủy
               </button>
+              {onStartAiScanner && (
+                <button type="button" className="btn btn-outline-primary btn-ai" onClick={onStartAiScanner} disabled={isAttendanceBusy}>
+                  <i className="bi bi-camera-video me-1"></i> Quét Điểm danh Tự động
+                </button>
+              )}
               <button type="button" className="btn btn-primary" onClick={onSaveAttendance} disabled={isAttendanceBusy || !selectedClassExists}>
                 Lưu kết quả
               </button>
