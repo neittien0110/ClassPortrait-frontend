@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Class } from '../../../../types/Class';
 import { Student } from '../../../../types/Student';
 import { useAutoDismissMessage } from '../../../../hooks/useAutoDismissMessage';
@@ -12,6 +12,7 @@ import {
   SavedAttendanceState,
 } from '../services/attendance.service';
 import { useAttendanceActions } from './useAttendanceActions';
+import { initSpeech } from '../../../../lib/tts/speech.util';
 
 export type { AttendanceFilter } from '../services/attendance.service';
 
@@ -40,7 +41,16 @@ export const useAttendanceController = ({
   const [isRetakeConfirmOpen, setRetakeConfirmOpen] = useState(false);
   const [attendanceInitialMap, setAttendanceInitialMap] = useState<Record<string, AttendanceRecord>>({});
   const [attendanceDraftMap, setAttendanceDraftMap] = useState<Record<string, AttendanceRecord>>({});
+
+  // State cho tính năng "Tự động gọi tên"
+  const [isAutoCallEnabled, setAutoCallEnabled] = useState(false);
+  const [callingIndex, setCallingIndex] = useState(0);
   const [savedAttendance, setSavedAttendance] = useState<SavedAttendanceState | null>(null);
+
+  // Khởi động TTS sớm để trình duyệt kịp load danh sách giọng
+  useEffect(() => {
+    initSpeech();
+  }, []);
 
   const {
     clearAttendanceState,
@@ -76,11 +86,40 @@ export const useAttendanceController = ({
 
   const activeAttendanceMap = isAttendanceMode ? attendanceDraftMap : savedAttendance?.records || {};
 
+  // Hàm điều hướng gọi tên thủ công
+  const handleCallingNext = useCallback(() => {
+    setCallingIndex((prev) => prev + 1);
+  }, []);
+
+  const handleCallingMarkPresent = useCallback(
+    (mssv: string) => {
+      handleToggleAttendance(mssv);
+      setCallingIndex((prev) => prev + 1);
+    },
+    [handleToggleAttendance]
+  );
+
+  const handleCallingClose = useCallback(() => {
+    setAutoCallEnabled(false);
+    setCallingIndex(0);
+  }, []);
+
+  // Reset calling index khi bắt đầu điểm danh lại
+  const wrappedStartAttendance = useCallback(
+    async (classIdOverride?: string) => {
+      setCallingIndex(0);
+      await handleStartAttendance(classIdOverride);
+    },
+    [handleStartAttendance]
+  );
+
   useEffect(() => {
     const nextClassId = selectedClass?.id || null;
 
     if (selectedClassIdRef.current && selectedClassIdRef.current !== nextClassId) {
       clearAttendanceState();
+      setAutoCallEnabled(false);
+      setCallingIndex(0);
     }
 
     selectedClassIdRef.current = nextClassId;
@@ -109,13 +148,20 @@ export const useAttendanceController = ({
     attendanceStats,
     detailRows,
     activeAttendanceMap,
+    // Voice / Auto-call
+    isAutoCallEnabled,
+    callingIndex,
+    setAutoCallEnabled,
+    handleCallingNext,
+    handleCallingMarkPresent,
+    handleCallingClose,
     setAttendanceMessage,
     setAttendanceFilter,
     setAttendanceSearch,
     setStatsModalOpen,
     setDetailModalOpen,
     setRetakeConfirmOpen,
-    handleStartAttendance,
+    handleStartAttendance: wrappedStartAttendance,
     handleToggleAttendance,
     handleConfirmSaveAttendance,
     handleCancelAttendanceMode,

@@ -10,11 +10,13 @@ interface ShellHeaderProps {
   rosterMeta?: RosterMeta;
   isAttendanceMode?: boolean;
   isAttendanceBusy?: boolean;
+  isAutoCallEnabled?: boolean;
   onOpenShare?: () => void;
   onStartAttendance?: () => Promise<void> | void;
   onSaveAttendance?: () => void;
   onCancelAttendance?: () => void;
   onStartAiScanner?: () => void;
+  onToggleAutoCall?: (enabled: boolean) => void;
   onImportSuccess?: (importedClassId?: string) => Promise<void> | void;
   hideShareAction?: boolean;
   hideAttendanceAction?: boolean;
@@ -28,11 +30,13 @@ function ShellHeader({
   rosterMeta = {} as RosterMeta,
   isAttendanceMode = false,
   isAttendanceBusy = false,
+  isAutoCallEnabled = false,
   onOpenShare,
   onStartAttendance,
   onSaveAttendance,
   onCancelAttendance,
   onStartAiScanner,
+  onToggleAutoCall,
   onImportSuccess,
   hideShareAction = false,
   hideAttendanceAction = false,
@@ -91,6 +95,27 @@ function ShellHeader({
                   <i className="bi bi-camera-video me-1"></i> Quét Điểm danh Tự động
                 </button>
               )}
+
+              {/* Switch Tự động gọi tên */}
+              {onToggleAutoCall && (
+                <div className="d-flex align-items-center gap-2">
+                  <div className="form-check form-switch mb-0">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="shellAutoCallSwitch"
+                      checked={isAutoCallEnabled}
+                      onChange={(e) => onToggleAutoCall(e.target.checked)}
+                      disabled={isAttendanceBusy}
+                    />
+                    <label className="form-check-label d-flex align-items-center gap-1" htmlFor="shellAutoCallSwitch" style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                      <i className="bi bi-mic" />
+                      Tự động gọi tên
+                    </label>
+                  </div>
+                </div>
+              )}
+
               <button type="button" className="btn btn-primary" onClick={onSaveAttendance} disabled={isAttendanceBusy || !selectedClassExists}>
                 Lưu kết quả
               </button>
