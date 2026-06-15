@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useFaceModels } from '../../hooks/ai/useFaceModels';
 import { useWebcam } from '../../hooks/ai/useWebcam';
@@ -6,12 +6,18 @@ import { useFaceVerification } from '../../hooks/ai/useFaceVerification';
 import { CameraOverlay } from './CameraOverlay';
 import { RecentScansLog, ScannedStudent } from './RecentScansLog';
 import { speak, buildCallText, buildPresentText } from '../../../../../lib/tts/speech.util';
+import { aiVerifyAndMark, FaceMismatchError } from '../../services/attendance.ai';
+import { ShareTokenParams } from '../../services/attendance.api';
 
 interface FaceVerificationScannerProps {
   students: any[];
   activeAttendanceMap: Record<string, any>;
   onToggleAttendance: (mssv: string) => void;
   onClose: () => void;
+  /** UUID lớp học — cần để gọi API ai-verify */
+  classId: string;
+  /** Share token dành cho giám thị (undefined nếu là chủ lớp) */
+  shareToken?: ShareTokenParams;
   /** Bật/tắt tính năng đọc tên tự động */
   isAutoCallEnabled?: boolean;
   /** Callback thay đổi trạng thái đọc tên */
@@ -23,6 +29,8 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
   activeAttendanceMap,
   onToggleAttendance,
   onClose,
+  classId,
+  shareToken,
   isAutoCallEnabled = false,
   onToggleAutoCall,
 }) => {
@@ -40,14 +48,18 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
   // Các trạng thái hỗ trợ việc trì hoãn (delay) hiển thị kết quả thành công
   const [isPaused, setIsPaused] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Toast lỗi kỹ thuật (lỗi mạng, 5xx...) — tự dismiss sau 4 giây
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const errorToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dọn dẹp timeout khi component unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (errorToastTimerRef.current) clearTimeout(errorToastTimerRef.current);
     };
   }, []);
 
@@ -82,20 +94,20 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStudent?.id, isAutoCallEnabled, isPaused]);
 
-  // Reset index về 0 mỗi khi người dùng thay đổi từ khóa tìm kiếm để focus vào kết quả đầu tiên
+  // Reset index về 0 mỗi khi người dùng thay đổi từ khóa tìm kiếm
   useEffect(() => {
     setCurrentIndex(0);
   }, [searchQuery]);
 
-  // Chỉ chạy phân tích hình ảnh khi không trong chế độ tạm dừng (delay hiển thị thành công)
-  const { verificationResult, refImageError } = useFaceVerification(
+  // Chỉ chạy phân tích hình ảnh khi không trong chế độ tạm dừng
+  const { verificationResult, refImageError, getLiveDescriptor } = useFaceVerification(
     videoRef,
     isCameraActive && !isPaused,
     modelsLoaded,
     currentStudent ? currentStudent.photoUrl : null
   );
 
-  // Khởi động camera khi model AI đã sẵn sàng (tránh race condition màn đen)
+  // Khởi động camera khi model AI đã sẵn sàng
   useEffect(() => {
     if (modelsLoaded) {
       startCamera();
@@ -110,51 +122,21 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
     }
   }, [filteredPendingStudents.length, currentIndex]);
 
-  // Logic Auto-Mode: Cần khớp liên tục ~18 frames (~500-600ms) để chống nhiễu
-  useEffect(() => {
-    if (isPaused) return;
+  // ────────────────────────────────────────────────────────────────────────────
+  // Helper: hiện toast lỗi kỹ thuật, tự dismiss sau 4s
+  // ────────────────────────────────────────────────────────────────────────────
+  const showErrorToast = useCallback((message: string) => {
+    setErrorToast(message);
+    if (errorToastTimerRef.current) clearTimeout(errorToastTimerRef.current);
+    errorToastTimerRef.current = setTimeout(() => {
+      setErrorToast(null);
+    }, 4000);
+  }, []);
 
-    if (!autoMode || !currentStudent || !verificationResult?.isMatch) {
-      setMatchHoldTime(0);
-      return;
-    }
-
-    if (verificationResult.matchScore > 90) {
-      setMatchHoldTime(prev => prev + 1);
-    } else {
-      setMatchHoldTime(0);
-    }
-
-    if (matchHoldTime > 18) {
-      handleVerifyCurrent();
-      setMatchHoldTime(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verificationResult, autoMode, currentStudent, matchHoldTime, isPaused]);
-
-  const handleVerifyCurrent = () => {
-    if (!currentStudent || isPaused) return;
-
-    const score = verificationResult?.matchScore || 100;
-
-    // 1. Báo trạng thái thành công và tạm dừng quét tiếp
-    setSuccessMessage(`Xác nhận đúng sinh viên ${currentStudent.fullName} - Khớp ${score}%`);
-    setIsPaused(true);
-
-    // 2. Lưu vào danh sách quét gần đây lập tức để giao diện hiển thị
-    setRecentScans(prev => {
-      const newLog = [{
-        studentId: currentStudent.id,
-        mssv: currentStudent.mssv,
-        fullName: currentStudent.fullName,
-        photoUrl: currentStudent.photoUrl,
-        scannedAt: new Date(),
-        matchScore: score
-      }, ...prev];
-      return newLog.slice(0, 5);
-    });
-
-    // 3. Phát âm thanh bip
+  // ────────────────────────────────────────────────────────────────────────────
+  // Helper: phát tiếng bíp xác nhận
+  // ────────────────────────────────────────────────────────────────────────────
+  const playBeep = useCallback(() => {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContext) {
@@ -177,20 +159,122 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
     } catch (e) {
       console.warn('Web Audio error:', e);
     }
+  }, []);
 
-    // 3b. Đọc thông báo "ý được xác nhận" nếu đang bật giọng đọc
-    if (isAutoCallEnabled && currentStudent) {
-      speak(buildPresentText(currentStudent.fullName));
+  // ────────────────────────────────────────────────────────────────────────────
+  // Helper: logic UI thành công (chung cho cả auto và thủ công)
+  // Hiện success banner, phát bíp, TTS, rồi sau 2s gọi onToggleAttendance
+  // ────────────────────────────────────────────────────────────────────────────
+  const triggerSuccessUI = useCallback((student: any, score: number) => {
+    setSuccessMessage(`Xác nhận đúng sinh viên ${student.fullName} - Khớp ${score}%`);
+
+    // Thêm vào log quét gần đây
+    setRecentScans(prev => {
+      const newLog = [{
+        studentId: student.id,
+        mssv: student.mssv,
+        fullName: student.fullName,
+        photoUrl: student.photoUrl,
+        scannedAt: new Date(),
+        matchScore: score
+      }, ...prev];
+      return newLog.slice(0, 5);
+    });
+
+    playBeep();
+
+    if (isAutoCallEnabled) {
+      speak(buildPresentText(student.fullName));
     }
 
-    // 4. Trì hoãn 2 giây để giảng viên/sinh viên kịp quan sát thông tin trước khi chuyển tiếp
+    // Sau 2 giây: cập nhật state local rồi resume scanning
     timeoutRef.current = setTimeout(() => {
-      onToggleAttendance(currentStudent.mssv);
+      onToggleAttendance(student.mssv);
       setIsPaused(false);
       setSuccessMessage(null);
       setMatchHoldTime(0);
     }, 2000);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAutoCallEnabled, playBeep, onToggleAttendance]);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // AUTO VERIFY: Gọi khi auto-mode đạt ngưỡng 18 frames.
+  // Gửi descriptor lên Backend → backend verify → nếu ok thì triggerSuccessUI.
+  // Không làm gì nếu: mismatch (im lặng) / lỗi kỹ thuật (toast + resume).
+  // ────────────────────────────────────────────────────────────────────────────
+  const handleVerifyAuto = useCallback(async () => {
+    if (!currentStudent || isPaused) return;
+
+    const liveDescriptor = getLiveDescriptor();
+    if (!liveDescriptor) {
+      // Không có descriptor (camera mất tín hiệu giữa chừng) → bỏ qua, reset đếm
+      setMatchHoldTime(0);
+      return;
+    }
+
+    // Pause scanning ngay lập tức để tránh gọi API nhiều lần
+    setIsPaused(true);
+
+    const score = verificationResult?.matchScore || 90;
+
+    try {
+      await aiVerifyAndMark(classId, currentStudent.id, liveDescriptor, shareToken);
+      // Backend xác nhận → hiện UI thành công
+      triggerSuccessUI(currentStudent, score);
+    } catch (err) {
+      if (err instanceof FaceMismatchError) {
+        // Khuôn mặt không khớp → im lặng, resume quét
+        setIsPaused(false);
+        setMatchHoldTime(0);
+      } else {
+        // Lỗi kỹ thuật → hiện toast, resume quét
+        setIsPaused(false);
+        setMatchHoldTime(0);
+        const message = (err as Error).message || 'Lỗi kết nối. Vui lòng thử lại.';
+        showErrorToast(message);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, currentStudent, isPaused, getLiveDescriptor, verificationResult?.matchScore, shareToken, triggerSuccessUI, showErrorToast]);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // MANUAL CONFIRM: Nút "Xác nhận" bấm tay — bypass AI, tin tưởng giảng viên.
+  // Giữ nguyên logic cũ: chỉ update local state (không gọi AI verify API).
+  // API PUT thực sự chỉ được gọi khi bấm "Lưu" ở màn hình chính.
+  // ────────────────────────────────────────────────────────────────────────────
+  const handleConfirmManual = useCallback(() => {
+    if (!currentStudent || isPaused) return;
+
+    const score = verificationResult?.matchScore || 100;
+
+    setIsPaused(true);
+    triggerSuccessUI(currentStudent, score);
+  }, [currentStudent, isPaused, verificationResult?.matchScore, triggerSuccessUI]);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Logic Auto-Mode: Cần khớp liên tục ~18 frames (~500-600ms) để chống nhiễu.
+  // Chỉ trigger khi score > 90 (khớp mạnh), không trigger khi isPaused.
+  // ────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isPaused) return;
+
+    if (!autoMode || !currentStudent || !verificationResult?.isMatch) {
+      setMatchHoldTime(0);
+      return;
+    }
+
+    if (verificationResult.matchScore > 90) {
+      setMatchHoldTime(prev => prev + 1);
+    } else {
+      setMatchHoldTime(0);
+    }
+
+    if (matchHoldTime > 18) {
+      handleVerifyAuto();
+      setMatchHoldTime(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verificationResult, autoMode, currentStudent, matchHoldTime, isPaused]);
 
   const handleSkip = () => {
     if (currentIndex < filteredPendingStudents.length - 1) {
@@ -237,7 +321,7 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
                   Quét Mặt
                 </h5>
 
-                {/* Ô tìm kiếm nhanh tích hợp trên Header, cạnh tiêu đề */}
+                {/* Ô tìm kiếm nhanh tích hợp trên Header */}
                 <div className="position-relative" style={{ width: '220px' }}>
                   <i className="bi bi-search position-absolute text-muted" style={{ left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }} />
                   <input
@@ -336,6 +420,25 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
 
             {/* Body */}
             <div className="modal-body p-3 bg-white">
+              {/* Toast lỗi kỹ thuật — hiện khi có lỗi mạng/503 */}
+              {errorToast && (
+                <div
+                  className="alert alert-warning d-flex align-items-center justify-content-between py-2 mb-3"
+                  role="alert"
+                  style={{ fontSize: '0.9rem' }}
+                >
+                  <span>
+                    <i className="bi bi-wifi-off me-2" />
+                    {errorToast}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-close btn-sm ms-2"
+                    onClick={() => setErrorToast(null)}
+                  />
+                </div>
+              )}
+
               {/* Alert thông báo xác nhận thành công */}
               {successMessage && (
                 <div
@@ -439,9 +542,13 @@ export const FaceVerificationScanner: React.FC<FaceVerificationScannerProps> = (
                             <button className="btn btn-outline-danger flex-grow-1" onClick={handleSkip} disabled={isPaused}>
                               <i className="bi bi-arrow-right-circle me-1" /> Bỏ qua
                             </button>
+                            {/*
+                              Nút "Xác nhận" thủ công: bypass AI, tin tưởng quyết định của giảng viên.
+                              Ghi nhận local state ngay, API PUT thực sự được gọi khi bấm "Lưu".
+                            */}
                             <button
                               className={`btn ${verificationResult?.isMatch ? 'btn-success' : 'btn-outline-success'} flex-grow-1`}
-                              onClick={handleVerifyCurrent}
+                              onClick={handleConfirmManual}
                               disabled={isPaused}
                             >
                               <i className="bi bi-check-circle me-1" /> Xác nhận

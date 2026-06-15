@@ -12,7 +12,7 @@ export interface ParsedExcelInfo {
   nameColumn?: string;
 }
 
-export type SourceType = 'excel' | 'gsheet' | 'onedrive';
+export type SourceType = 'excel' | 'gsheet';
 
 export interface DuplicateClassInfo {
   existingClassId: string;

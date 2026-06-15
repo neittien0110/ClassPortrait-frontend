@@ -176,7 +176,7 @@ function ImportHistoryView() {
               id="history-source-type"
               className="form-select"
               value={sourceType}
-              onChange={(event) => setSourceType(event.target.value as 'all' | 'excel' | 'google_sheet' | 'onedrive')}
+              onChange={(event) => setSourceType(event.target.value as 'all' | 'excel' | 'google_sheet')}
               disabled={loading}
             >
               {sourceOptions.map((option) => (

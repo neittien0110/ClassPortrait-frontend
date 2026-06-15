@@ -1,4 +1,4 @@
-export type ImportSourceType = 'excel' | 'google_sheet' | 'onedrive';
+export type ImportSourceType = 'excel' | 'google_sheet';
 
 export interface ImportHistoryClassFieldChange {
   field: string;

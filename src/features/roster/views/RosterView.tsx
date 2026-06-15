@@ -237,6 +237,7 @@ function RosterView() {
           activeAttendanceMap={activeAttendanceMap}
           onToggleAttendance={handleToggleAttendance}
           onClose={() => setAiModeOpen(false)}
+          classId={selectedClass?.id ?? ''}
           isAutoCallEnabled={isAutoCallEnabled}
           onToggleAutoCall={setAutoCallEnabled}
         />

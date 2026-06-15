@@ -46,6 +46,8 @@ export function useFaceVerification(
   const requestRef = useRef<number>(null);
   const isMatchingRef = useRef<boolean>(false);
   const isRunningRef = useRef<boolean>(false);
+  // Ref lưu descriptor khuôn mặt đang nhìn vào camera (cập nhật mỗi frame, không gây re-render)
+  const liveDescriptorRef = useRef<Float32Array | null>(null);
 
   // 1. Tải và trích xuất đặc trưng của ảnh gốc (Reference Image)
   useEffect(() => {
@@ -148,6 +150,8 @@ export function useFaceVerification(
             distance,
             box: detection.detection.box
           });
+          // Cập nhật live descriptor để Scanner lấy khi cần gọi API ai-verify
+          liveDescriptorRef.current = detection.descriptor;
         } else {
           // Có mặt nhưng chưa có reference descriptor hợp lệ (ví dụ ảnh thẻ lỗi/SVG)
           setVerificationResult({
@@ -190,5 +194,16 @@ export function useFaceVerification(
     };
   }, [isCameraActive, modelsLoaded, processVideoFrame]);
 
-  return { referenceDescriptor: referenceDescriptorRef.current, verificationResult, isProcessing, refImageError };
+  return {
+    referenceDescriptor: referenceDescriptorRef.current,
+    verificationResult,
+    isProcessing,
+    refImageError,
+    /**
+     * Lấy descriptor khuôn mặt đang hiển thị trên camera tại thời điểm gọi.
+     * Dùng Ref thay vì State để không gây re-render mỗi frame.
+     * Trả về null nếu camera không nhìn thấy khuôn mặt.
+     */
+    getLiveDescriptor: (): Float32Array | null => liveDescriptorRef.current,
+  };
 }

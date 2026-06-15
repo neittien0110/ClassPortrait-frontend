@@ -488,6 +488,8 @@ function SharedClassPage({ id, exp, sig }: SharedClassPageProps) {
               activeAttendanceMap={sharedAttendance.activeAttendanceMap}
               onToggleAttendance={sharedAttendance.handleToggleAttendance}
               onClose={() => setAiModeOpen(false)}
+              classId={payload?.classInfo?.id ?? ''}
+              shareToken={payload?.shareContext ?? undefined}
               isAutoCallEnabled={sharedAttendance.isAutoCallEnabled}
               onToggleAutoCall={sharedAttendance.setAutoCallEnabled}
             />

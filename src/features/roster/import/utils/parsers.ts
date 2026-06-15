@@ -16,13 +16,6 @@ export const SOURCE_OPTIONS: ImportSourceOption[] = [
     icon: 'G',
     isEnabled: true,
   },
-  {
-    key: 'onedrive',
-    title: 'OneDrive',
-    subtitle: 'Nhập link',
-    icon: 'O',
-    isEnabled: false,
-  },
 ];
 
 export const normalizeText = (value: string): string =>

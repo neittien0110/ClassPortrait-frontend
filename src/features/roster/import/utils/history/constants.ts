@@ -2,13 +2,11 @@ export const sourceOptions = [
   { value: 'all', label: 'Tất cả nguồn' },
   { value: 'excel', label: 'Excel' },
   { value: 'google_sheet', label: 'Google Sheet' },
-  { value: 'onedrive', label: 'OneDrive' },
 ] as const;
 
 export const sourceTypeLabel: Record<string, string> = {
   excel: 'Excel',
   google_sheet: 'Google Sheet',
-  onedrive: 'OneDrive',
 };
 
 export const actionLabel: Record<string, string> = {
