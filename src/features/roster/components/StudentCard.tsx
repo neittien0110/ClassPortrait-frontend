@@ -50,6 +50,7 @@ function StudentCard({
 
   return (
     <div
+      id={`student-card-${mssv}`}
       className={`card student-card ${isAttendanceMode ? 'is-attendance-mode' : ''}`}
       role={isAttendanceMode ? 'button' : undefined}
       tabIndex={isAttendanceMode ? 0 : undefined}

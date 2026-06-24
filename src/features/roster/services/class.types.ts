@@ -127,6 +127,8 @@ export interface SharedClassInfo {
 }
 
 export interface SharedClassStudent {
+  /** UUID backend của sinh viên, chỉ được trả về khi người xem có quyền điểm danh. */
+  studentId?: string;
   mssv: string;
   name?: string;
   fullName?: string;

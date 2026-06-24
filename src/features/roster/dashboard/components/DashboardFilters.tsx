@@ -23,8 +23,15 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   };
 
   return (
-    <div className="dash-filters-wrapper mb-4">
-      <div className="dash-filter-section report-filter p-3 rounded-3 bg-light border">
+    <div
+      className="dash-filters-wrapper mb-4"
+      style={{
+        position: 'sticky',
+        top: '70px',
+        zIndex: 1020,
+      }}
+    >
+      <div className="dash-filter-section report-filter p-3 rounded-3 bg-light border shadow-sm">
         <div className="row g-3 align-items-center">
           <div className="col-auto">
             <span className="fw-semibold small text-muted text-uppercase">Khoảng thời gian báo cáo:</span>

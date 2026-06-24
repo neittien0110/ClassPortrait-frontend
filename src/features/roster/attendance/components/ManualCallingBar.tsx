@@ -54,7 +54,15 @@ export const ManualCallingBar: React.FC<ManualCallingBarProps> = ({
 
   // Sau khi đã kích hoạt, tự động đọc khi index thay đổi
   useEffect(() => {
-    if (!isAutoCallEnabled || !voiceActivated || !currentStudent) return;
+    if (!isAutoCallEnabled || !currentStudent) return;
+    
+    // Tự động cuộn đến sinh viên đang gọi
+    const el = document.getElementById(`student-card-${currentStudent.mssv}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    if (!voiceActivated) return;
     if (lastSpokenIndexRef.current === callingIndex) return;
 
     lastSpokenIndexRef.current = callingIndex;
@@ -77,14 +85,14 @@ export const ManualCallingBar: React.FC<ManualCallingBarProps> = ({
     }
   }, [callingIndex, currentStudent]);
 
-  // Phím tắt: Space = Có mặt, → = Vắng/Tiếp, Esc = Đóng
+  // Phím tắt: + = Có mặt, - = Vắng/Tiếp, Esc = Đóng
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
         e.preventDefault();
         if (!voiceActivated) { handleActivateAndSpeak(); return; }
         if (currentStudent) onMarkPresent(currentStudent.mssv);
-      } else if (e.code === 'ArrowRight') {
+      } else if (e.key === '-' || e.code === 'NumpadSubtract') {
         e.preventDefault();
         if (!voiceActivated) { handleActivateAndSpeak(); return; }
         onSkip();
@@ -206,7 +214,7 @@ export const ManualCallingBar: React.FC<ManualCallingBarProps> = ({
             <button
               type="button"
               onClick={onSkip}
-              title="Vắng / Tiếp theo (→)"
+              title="Vắng / Tiếp theo (-)"
               style={{
                 ...btnBase,
                 border: '1px solid rgba(239,68,68,0.4)',
@@ -216,13 +224,13 @@ export const ManualCallingBar: React.FC<ManualCallingBarProps> = ({
             >
               <i className="bi bi-arrow-right-circle" />
               Vắng{hasMore ? '' : ' / Kết thúc'}
-              <kbd style={{ fontSize: '0.65rem', opacity: 0.6, marginLeft: '2px' }}>→</kbd>
+              <kbd style={{ fontSize: '0.65rem', opacity: 0.6, marginLeft: '2px' }}>-</kbd>
             </button>
 
             <button
               type="button"
               onClick={() => onMarkPresent(currentStudent.mssv)}
-              title="Có mặt (Space)"
+              title="Có mặt (+)"
               style={{
                 ...btnBase,
                 border: '1px solid rgba(74,222,128,0.4)',
@@ -233,7 +241,7 @@ export const ManualCallingBar: React.FC<ManualCallingBarProps> = ({
             >
               <i className="bi bi-check-circle-fill" />
               Có mặt
-              <kbd style={{ fontSize: '0.65rem', opacity: 0.6, marginLeft: '2px' }}>Space</kbd>
+              <kbd style={{ fontSize: '0.65rem', opacity: 0.6, marginLeft: '2px' }}>+</kbd>
             </button>
 
             {/* Nút đọc lại */}

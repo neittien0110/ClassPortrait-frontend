@@ -86,6 +86,26 @@ export const useAttendanceController = ({
 
   const activeAttendanceMap = isAttendanceMode ? attendanceDraftMap : savedAttendance?.records || {};
 
+  // Tự động bỏ qua các sinh viên đã có mặt
+  useEffect(() => {
+    if (!isAutoCallEnabled || callingIndex >= students.length) return;
+
+    let nextIndex = callingIndex;
+    while (nextIndex < students.length) {
+      const student = students[nextIndex];
+      const record = attendanceDraftMap[student.mssv];
+      if (record?.status === 'present') {
+        nextIndex++;
+      } else {
+        break;
+      }
+    }
+
+    if (nextIndex !== callingIndex) {
+      setCallingIndex(nextIndex);
+    }
+  }, [callingIndex, isAutoCallEnabled, students, attendanceDraftMap]);
+
   // Hàm điều hướng gọi tên thủ công
   const handleCallingNext = useCallback(() => {
     setCallingIndex((prev) => prev + 1);

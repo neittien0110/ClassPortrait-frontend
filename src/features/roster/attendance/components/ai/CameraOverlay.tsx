@@ -8,7 +8,12 @@ interface CameraOverlayProps {
   matchScore: number;
 }
 
-export const CameraOverlay: React.FC<CameraOverlayProps> = ({ videoRef, box, isMatch, matchScore }) => {
+export const CameraOverlay: React.FC<CameraOverlayProps> = ({
+  videoRef,
+  box,
+  isMatch,
+  matchScore,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -32,7 +37,7 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({ videoRef, box, isM
 
     if (box) {
       const color = isMatch ? '#00cc66' : '#ff4444';
-      const text = isMatch ? `Khớp: ${matchScore}%` : `Cảnh báo: ${matchScore}%`;
+      const text = `Tương đồng: ${matchScore}%`;
       
       // SỬA LỖI LỆCH MẶT / NGƯỢC CAMERA: 
       // Do video được mirror bằng CSS scaleX(-1), ta tính tọa độ X đã được lật gương đồng bộ

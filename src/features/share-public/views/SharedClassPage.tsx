@@ -240,13 +240,15 @@ function SharedClassPage({ id, exp, sig }: SharedClassPageProps) {
   // Dữ liệu sinh viên theo đúng shape mà FaceVerificationScanner cần
   const studentsForScanner = useMemo(() => {
     if (!payload?.students) return [];
-    return payload.students.map((s) => ({
-      id: s.mssv,          // Scanner dùng id để lưu log, dùng mssv làm id duy nhất
-      mssv: s.mssv,
-      fullName: s.fullName || s.name || s.mssv,
-      photoUrl: s.photoUrl || '',
-      classCode: '',       // Không có classCode riêng trong shared view
-    }));
+    return payload.students
+      .filter((s) => Boolean(s.studentId))
+      .map((s) => ({
+        id: s.studentId as string,
+        mssv: s.mssv,
+        fullName: s.fullName || s.name || s.mssv,
+        photoUrl: s.photoUrl || '',
+        classCode: '',       // Không có classCode riêng trong shared view
+      }));
   }, [payload?.students]);
 
   const renderContent = () => {

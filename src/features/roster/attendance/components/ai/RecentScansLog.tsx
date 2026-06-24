@@ -6,7 +6,8 @@ export interface ScannedStudent {
   fullName: string;
   photoUrl: string;
   scannedAt: Date;
-  matchScore: number;
+  matchScore?: number;
+  method?: 'ai' | 'manual';
 }
 
 interface RecentScansLogProps {
@@ -35,7 +36,11 @@ export const RecentScansLog: React.FC<RecentScansLogProps> = ({ scans, onUndo })
               />
               <div className="flex-grow-1 overflow-hidden">
                 <div className="text-truncate fw-bold" style={{ fontSize: '0.85rem' }} title={scan.fullName}>{scan.fullName}</div>
-                <div className="text-muted" style={{ fontSize: '0.75rem' }}>{scan.matchScore}% - {scan.scannedAt.toLocaleTimeString()}</div>
+                <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                  {scan.method === 'manual' || scan.matchScore === undefined
+                    ? 'Thủ công'
+                    : `${scan.matchScore}%`} - {scan.scannedAt.toLocaleTimeString()}
+                </div>
               </div>
               <button 
                 className="btn btn-sm btn-outline-danger p-1" 
