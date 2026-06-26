@@ -1,15 +1,27 @@
 import React, { useRef } from 'react';
 import { StepFive, StepFourPreview, StepOne, StepThree, StepTwo } from './steps';
 import { useImportButtonController } from '../hooks/useImportButtonController';
+import { useExportExamPDF } from '../hooks/useExportExamPDF';
 import { ImportButtonProps } from '../types';
 
-function ImportButton({ onImportSuccess }: ImportButtonProps) {
+function ImportButton({ onImportSuccess, onExportPDF }: ImportButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, actions] = useImportButtonController({ onImportSuccess });
+  const { isExporting: isExportingPDF, exportPDF } = useExportExamPDF();
 
   const resetFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const ids = state.lastImportedClassIds;
+    if (!ids || ids.length === 0) return;
+    if (onExportPDF) {
+      onExportPDF(ids);
+    } else {
+      await exportPDF(ids);
     }
   };
 
@@ -30,9 +42,9 @@ function ImportButton({ onImportSuccess }: ImportButtonProps) {
 
       <button className="btn btn-success btn-sm" onClick={() => actions.openModal(resetFileInput)} disabled={state.isParsing || state.isImporting || state.isPreviewLoading}>
         {state.isImporting ? (
-          <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang import...</>
+          <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />Đang import...</>
         ) : (
-          <><i className="bi bi-upload me-1"></i>Import File</>
+          <><i className="bi bi-upload me-1" />Import File</>
         )}
       </button>
 
@@ -76,6 +88,8 @@ function ImportButton({ onImportSuccess }: ImportButtonProps) {
                 onManualMssvChange={actions.setManualMssvColumn}
                 onManualNameChange={actions.setManualNameColumn}
                 onStartRowChange={actions.setStartRow}
+                onExportPDF={handleExportPDF}
+                isExportingPDF={isExportingPDF}
               />
             )}
 
@@ -110,3 +124,4 @@ function ImportButton({ onImportSuccess }: ImportButtonProps) {
 }
 
 export default ImportButton;
+

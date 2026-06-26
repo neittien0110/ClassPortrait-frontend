@@ -3,6 +3,7 @@ import { DuplicateImportOptions } from '../../services/class.service';
 import { extractDuplicateConflict } from '../utils/duplicate';
 import { parseExcelFile, parseGoogleSheetFromUrl } from '../utils/parsers';
 import { ImportButtonProps, ImportStateSnapshot, MappingMode, SourceType, ImportPreviewData } from '../types';
+import { ImportClassResult } from '../../services/class.types';
 import { mapImportErrorMessage } from '../utils/errorMessages';
 import { submitImportRequest } from '../services/import.service';
 import { importApi } from '../services/import.api';
@@ -51,6 +52,7 @@ export const useImportButtonController = ({ onImportSuccess }: ImportButtonProps
   const [duplicateConflict, setDuplicateConflict] = useState<ImportStateSnapshot['duplicateConflict']>(null);
   const [previewData, setPreviewData] = useState<ImportPreviewData | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [lastImportedClassIds, setLastImportedClassIds] = useState<string[]>([]);
 
   const isAutoDetected = useMemo(() => Boolean(autoMssvColumn && autoNameColumn), [autoMssvColumn, autoNameColumn]);
 
@@ -75,6 +77,7 @@ export const useImportButtonController = ({ onImportSuccess }: ImportButtonProps
     setDuplicateConflict(null);
     setPreviewData(null);
     setIsPreviewLoading(false);
+    setLastImportedClassIds([]);
   };
 
   const validateGoogleSheetUrl = (): string | null => {
@@ -86,8 +89,14 @@ export const useImportButtonController = ({ onImportSuccess }: ImportButtonProps
     return null;
   };
 
-  const onImportSucceeded = async (classId: string, successMessage?: string) => {
+  const onImportSucceeded = async (classId: string, successMessage?: string, importResult?: ImportClassResult) => {
     setMessage({ type: 'success', text: successMessage || 'Import thành công!' });
+    // Lưu classIds để xuất PDF
+    if (importResult?.classIds && importResult.classIds.length > 0) {
+      setLastImportedClassIds(importResult.classIds);
+    } else if (classId) {
+      setLastImportedClassIds([classId]);
+    }
     if (onImportSuccess) {
       await onImportSuccess(classId);
     }
@@ -173,7 +182,7 @@ export const useImportButtonController = ({ onImportSuccess }: ImportButtonProps
         duplicateOptions,
       });
 
-      await onImportSucceeded(result.classId, result.message);
+      await onImportSucceeded(result.classId, result.message, result as any);
     } catch (error: any) {
       const conflict = extractDuplicateConflict(error);
       if (conflict) {
@@ -195,6 +204,7 @@ export const useImportButtonController = ({ onImportSuccess }: ImportButtonProps
     autoMssvColumn, autoNameColumn, manualMssvColumn, manualNameColumn, startRow,
     isParsing, isImporting, isDragOver, message, isAutoDetected, pendingMappingMode,
     duplicateStepMode, duplicateConflict, previewData, isPreviewLoading,
+    lastImportedClassIds,
   };
 
   const actions: ControllerActions = {

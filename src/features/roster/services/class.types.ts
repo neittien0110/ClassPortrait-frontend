@@ -84,7 +84,8 @@ export interface DuplicateImportOptions {
 
 export interface ImportClassResult {
   success: boolean;
-  classId: string;
+  classId: string;        // classId chính (lớp đầu tiên hoặc ID tổng hợp)
+  classIds?: string[];    // Mảng tất cả classId khi import tạo nhiều lớp thi
   message: string;
   action?: 'created' | 'updated' | string;
 }

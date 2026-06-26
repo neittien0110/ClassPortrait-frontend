@@ -13,6 +13,7 @@ import { ImportProgress } from './ImportProgress';
  * @param props.onManualMssvChange Callback cập nhật tên cột được chọn làm cột MSSV.
  * @param props.onManualNameChange Callback cập nhật tên cột được chọn làm cột Họ tên.
  * @param props.onStartRowChange Callback cập nhật dòng bắt đầu lấy dữ liệu.
+ * @param props.onExportPDF Callback xuất PDF danh sách thí sinh (chỉ hiển thị khi import thành công).
  * @returns React Element giao diện bước 3.
  */
 export function StepThree(props: {
@@ -23,17 +24,37 @@ export function StepThree(props: {
   onManualMssvChange: (value: string) => void;
   onManualNameChange: (value: string) => void;
   onStartRowChange: (value: number) => void;
+  onExportPDF?: () => void;
+  isExportingPDF?: boolean;
 }) {
   const { state } = props;
   const isLoading = state.isImporting || state.isPreviewLoading;
 
   if (state.stepThreeMode === 'success') {
+    const classCount = state.lastImportedClassIds?.length ?? 0;
     return (
       <>
         <p className="import-modal-subtitle">Hoàn tất import</p>
         <ImportProgress step={state.step} />
         <div className="import-detection-box is-success"><div><strong>Import thành công</strong><p>{state.message?.text || 'Dữ liệu đã được import thành công.'}</p></div></div>
-        <div className="import-actions import-actions-center"><button type="button" className="btn btn-primary" onClick={props.onClose}>Đóng</button></div>
+        <div className="import-actions import-actions-center" style={{ gap: '10px', flexWrap: 'wrap' }}>
+          {props.onExportPDF && classCount > 0 && (
+            <button
+              type="button"
+              className="btn btn-outline-primary"
+              onClick={props.onExportPDF}
+              disabled={props.isExportingPDF}
+              title="Tải về file PDF danh sách thí sinh dự thi cho tất cả lớp thi"
+            >
+              {props.isExportingPDF ? (
+                <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />Đang xuất PDF...</>
+              ) : (
+                <><i className="bi bi-file-earmark-pdf me-1" />Xuất PDF danh sách dự thi</>
+              )}
+            </button>
+          )}
+          <button type="button" className="btn btn-primary" onClick={props.onClose}>Đóng</button>
+        </div>
       </>
     );
   }

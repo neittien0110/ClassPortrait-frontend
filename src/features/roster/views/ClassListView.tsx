@@ -4,6 +4,7 @@ import { useClasses } from '../hooks/useClasses';
 import ShellHeader from '../../../layouts/ShellHeader';
 import { Class } from '../../../types/Class';
 import { formatDate, formatTime } from '../utils/roster.utils';
+import { useExportExamPDF } from '../import/hooks/useExportExamPDF';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const GROUP_OPTIONS = [
@@ -38,6 +39,21 @@ export default function ClassListView() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState<GroupBy>('courseCode');
+  const { isExporting: isExportingPDF, exportPDF } = useExportExamPDF();
+  const [exportingGroupKey, setExportingGroupKey] = useState<string | null>(null);
+
+  const handleExportGroupPDF = async (groupKey: string, items: Class[]) => {
+    const classIds = items.map(c => c.id).filter(Boolean);
+    if (classIds.length === 0) return;
+    setExportingGroupKey(groupKey);
+    try {
+      const firstName = items[0];
+      const fileName = `DanhSachDuThi_${(firstName?.courseCode ?? 'HP').replace(/[^a-zA-Z0-9]/g, '_')}_HK${(firstName?.semester ?? '').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      await exportPDF(classIds, fileName);
+    } finally {
+      setExportingGroupKey(null);
+    }
+  };
 
   // Filter theo search
   const filteredClasses = useMemo(() => {
@@ -125,6 +141,24 @@ export default function ClassListView() {
                   style={{ background: '#f1f5f9' }}>
                   <strong style={{ fontSize: '0.92rem', color: '#1e40af' }}>{groupKey}</strong>
                   <span className="badge bg-secondary rounded-pill ms-1" style={{ fontSize: '0.75rem' }}>{items.length}</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm ms-auto d-flex align-items-center gap-1"
+                    style={{
+                      fontSize: '0.78rem', padding: '2px 10px',
+                      background: '#e0e7ff', color: '#1e40af',
+                      border: '1px solid #c7d2fe', borderRadius: '6px', fontWeight: 600,
+                    }}
+                    onClick={(e) => { e.stopPropagation(); handleExportGroupPDF(groupKey, items); }}
+                    disabled={exportingGroupKey === groupKey || isExportingPDF}
+                    title={`Xuất PDF danh sách thí sinh dự thi cho ${items.length} lớp thi`}
+                  >
+                    {exportingGroupKey === groupKey ? (
+                      <><span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '12px', height: '12px' }} />&nbsp;Đang xuất...</>
+                    ) : (
+                      <><i className="bi bi-file-earmark-pdf" />&#160;Xuất PDF</>
+                    )}
+                  </button>
                 </div>
 
                 {/* Table */}

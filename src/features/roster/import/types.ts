@@ -2,6 +2,8 @@ import { DuplicateImportOptions } from '../services/class.service';
 
 export interface ImportButtonProps {
   onImportSuccess?: (importedClassId?: string) => Promise<void> | void;
+  /** Callback được gọi khi người dùng nhấn "Xuất PDF" sau khi import thành công */
+  onExportPDF?: (classIds: string[]) => void;
 }
 
 export type ImportStep = 1 | 2 | 3 | 4 | 5;
@@ -74,6 +76,8 @@ export interface ImportStateSnapshot {
   duplicateConflict: DuplicateConflictState | null;
   previewData: ImportPreviewData | null;
   isPreviewLoading: boolean;
+  /** classIds vừa được import thành công (để xuất PDF) */
+  lastImportedClassIds: string[];
 }
 
 // Preview types

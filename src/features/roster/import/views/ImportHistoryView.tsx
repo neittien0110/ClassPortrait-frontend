@@ -6,6 +6,7 @@ import { formatDateTime } from '../utils/history/utils';
 import { ImportHistoryItem, ImportHistoryClassSummary } from '../../../roster/services/class.types';
 import ShellHeader from '../../../../layouts/ShellHeader';
 import { formatExcelTime } from '../utils/formatters';
+import { useExportExamPDF } from '../hooks/useExportExamPDF';
 
 // ─── Summary helpers ──────────────────────────────────────────────────────────
 
@@ -135,6 +136,8 @@ function ImportHistoryView() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteItem, setPendingDeleteItem] = useState<ImportHistoryItem | null>(null);
+  const { isExporting: isExportingPDF, exportPDF } = useExportExamPDF();
+  const [exportingHistoryId, setExportingHistoryId] = useState<string | null>(null);
 
   const totalPages = Math.max(pagination.totalPages || 0, 1);
 
@@ -161,6 +164,18 @@ function ImportHistoryView() {
       // Error handled by hook
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleExportPDF = async (item: ImportHistoryItem) => {
+    const classIds = item.classes?.map(c => c.id) ?? item.classIds ?? [];
+    if (classIds.length === 0) return;
+    setExportingHistoryId(item.id);
+    try {
+      const fileName = `DanhSachDuThi_${item.sourceName?.replace(/[^a-zA-Z0-9]/g, '_') ?? 'import'}.pdf`;
+      await exportPDF(classIds, fileName);
+    } finally {
+      setExportingHistoryId(null);
     }
   };
 
@@ -311,7 +326,25 @@ function ImportHistoryView() {
                           <td style={{ color: '#111827', whiteSpace: 'nowrap' }}>{formatDateTime(String(item.createdAt))}</td>
 
 
-                          <td className="text-center">
+                          <td className="text-center" style={{ whiteSpace: 'nowrap' }}>
+                            {/* Xuất PDF */}
+                            {(item.classes?.length ?? item.classIds?.length ?? 0) > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-link btn-sm p-0 border-0 me-2"
+                                style={{ color: '#2563eb', fontWeight: 'bold', fontSize: '13px', textDecoration: 'none' }}
+                                onClick={() => handleExportPDF(item)}
+                                disabled={exportingHistoryId === item.id || isExportingPDF}
+                                title="Xuất PDF danh sách thí sinh dự thi"
+                              >
+                                {exportingHistoryId === item.id ? (
+                                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                                ) : (
+                                  'PDF'
+                                )}
+                              </button>
+                            )}
+                            {/* Xóa */}
                             <button
                               type="button"
                               className="btn btn-link btn-sm p-0 border-0"

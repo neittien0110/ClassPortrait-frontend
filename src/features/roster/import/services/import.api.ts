@@ -50,20 +50,31 @@ export const importApi = {
     if (typeof options?.confirmUpdate === 'boolean') formData.append('confirmUpdate', String(options.confirmUpdate));
     if (options?.targetClassId) formData.append('targetClassId', options.targetClassId);
 
-    const response = await api.post<ImportClassResult>('/classes/import', formData, {
+    const response = await api.post<any>('/classes/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data;
+    const data = response.data;
+    // Backend trả về classIds (mảng), ta map về ImportClassResult
+    return {
+      ...data,
+      classId: data.classId ?? (Array.isArray(data.classIds) ? data.classIds[0] : ''),
+      classIds: Array.isArray(data.classIds) ? data.classIds : (data.classId ? [data.classId] : []),
+    } as ImportClassResult;
   },
 
   /**
    * Import lớp học từ Google Sheet.
    */
   importClassFromSheet: async (payload: ImportSheetPayload): Promise<ImportClassResult> => {
-    const response = await api.post<ImportClassResult>('/classes/import-from-sheet', payload, {
+    const response = await api.post<any>('/classes/import-from-sheet', payload, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return response.data;
+    const data = response.data;
+    return {
+      ...data,
+      classId: data.classId ?? (Array.isArray(data.classIds) ? data.classIds[0] : ''),
+      classIds: Array.isArray(data.classIds) ? data.classIds : (data.classId ? [data.classId] : []),
+    } as ImportClassResult;
   },
 
   /**
